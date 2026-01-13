@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Task;
 use App\Form\TaskType;
 use App\Repository\TaskRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,6 +28,19 @@ final class TaskController extends AbstractController
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
         $task = new Task();
+
+        if ($request->getContentTypeFormat() === 'json') {
+            $data = json_decode($request->getContent(), true);
+            $task->setTitle($data['title']);
+            $task->setDescription($data['description']);
+            $task->setCreatedAt(new DateTimeImmutable());
+
+            $entityManager->persist($task);
+            $entityManager->flush();
+
+            return $this->json(['succés'=>true ,'task'=>$task], 201);
+        }
+
         $form = $this->createForm(TaskType::class, $task);
         $form->handleRequest($request);
 
@@ -86,7 +100,7 @@ final class TaskController extends AbstractController
         return $this->json($task);
     }
 
-    #[Route('/api/tasks/csv', name:'api_tasks_json', methods:['GET'])]
+    #[Route('/api/tasks/csv', name:'api_tasks_csv', methods:['GET'])]
     public function tasksCsv (TaskRepository $taskRepository): Response{
         $tasks = $taskRepository->findAll();
 
@@ -103,7 +117,7 @@ final class TaskController extends AbstractController
 
         $response = new Response($csv);
         $response->headers->set('Content-Type', 'text/csv');
-        $response->headers->set('Content-Disposition', 'attachement; filename="tasks.csv');
+        $response->headers->set('Content-Disposition', 'attachment; filename="tasks.csv');
 
         return $response;
     }
